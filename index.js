@@ -3,7 +3,7 @@ require('dotenv').config()
 const app = express()
 
 app.get('/', (req, res) => {
-  res.send('Hello World!')
+  res.send('RAKIBUL ISLAM!')
 })
 app.get('/twitter',(req,res) => {
     res.send('<h1>Hey Chai BACKEND</h1>');
