@@ -73,9 +73,21 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong when registering user.");
   }
+
+  const {accessToken,refreshToken}  = await generateAccessAndRefershToken(createdUser._id);
+    const options = {
+        
+        httpOnly: true,
+        secure: true
+    }
+ 
   return res
     .status(200)
-    .json(new ApiResponse(200, createdUser, "User registered successfully."));
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(new ApiResponse(200,{
+        user: createdUser, accessToken, refreshToken
+    }, "User registered successfully."));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -86,7 +98,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [{ username }, { email }],
   });
- 
+
   if (!user) {
     throw new ApiError(400, "User does not exist.");
   }
