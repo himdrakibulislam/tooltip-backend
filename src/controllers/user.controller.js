@@ -1,70 +1,48 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  destroyFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
+import { allMail } from "../utils/mail.conf.js";
+
 const generateAccessAndRefershToken = async (userId) => {
   try {
     const user = await User.findById(userId);
-    
+
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
     return { accessToken, refreshToken };
-
   } catch (error) {
     console.log(error.message);
     throw new ApiError(500, "Something Went Wrong!");
   }
 };
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, fullName, password } = req.body;
+  const { email, fullName, password } = req.body;
 
   if (
-    [username, email, fullName, password].some((field) => field?.trim() === "")
+    [fullName, email, password].some((field) => !field || field?.trim() === "")
   ) {
-    throw new ApiError(400, "All fields are required.");
+    throw new ApiError(400, "All fields are required");
   }
 
-  const existedUser = await User.findOne({
-    $or: [{ username }, { email }],
-  });
+  const existedUser = await User.findOne({ email });
 
   if (existedUser) {
     throw new ApiError(409, "User with email or username already exists.");
   }
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-
-  let coverImageLocalPath;
-  if (
-    req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
-  ) {
-    coverImageLocalPath = req.files?.coverImage[0]?.path;
-  }
-
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required.");
-  }
-
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
-  if (!avatar) {
-    throw new ApiError(400, "Avatar file is required.");
-  }
 
   const user = await User.create({
     fullName,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
     email,
     password,
-    username: username.toLowerCase(),
   });
 
   const createdUser = await User.findById(user._id).select(
@@ -74,33 +52,48 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong when registering user.");
   }
 
-  const {accessToken,refreshToken}  = await generateAccessAndRefershToken(createdUser._id);
-    const options = {
-        
-        httpOnly: true,
-        secure: true
-    }
- 
+  const { accessToken, refreshToken } = await generateAccessAndRefershToken(
+    createdUser._id
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
-    .json(new ApiResponse(200,{
-        user: createdUser, accessToken, refreshToken
-    }, "User registered successfully."));
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: createdUser,
+          accessToken,
+          refreshToken,
+        },
+        "User registered successfully."
+      )
+    );
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username && !email) {
-    throw new ApiError(400, "username or email is required.");
+  const { email, password } = req.body;
+
+  if (!password || !email) {
+    throw new ApiError(400, "email or password is required.");
   }
-  const user = await User.findOne({
-    $or: [{ username }, { email }],
-  });
+
+  const user = await User.findOne({ email });
 
   if (!user) {
     throw new ApiError(400, "User does not exist.");
+  }
+  if (user.social_login) {
+    throw new ApiError(
+      400,
+      `User Already Sign Up With ${user.type}. Please Sign up with ${user.type}`
+    );
   }
   const isPasswordCorrect = await user.isPasswordCorrect(password);
 
@@ -108,359 +101,278 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid user credentials.");
   }
 
-  const {accessToken,refreshToken}  = await generateAccessAndRefershToken(user._id);
+  const { accessToken, refreshToken } = await generateAccessAndRefershToken(
+    user._id
+  );
 
-  const loggedUser = await User.findById(user._id).select("-password -refershToken");
-
+  const loggedUser = await User.findById(user._id).select(
+    "-password -refershToken"
+  );
 
   const options = {
-    
     httpOnly: true,
-    secure: true
-   }
-   
-   return res
-   .status(200)
-   .cookie("accessToken", accessToken, options)
-   .cookie("refreshToken", refreshToken, options)
-   .json(
-       new ApiResponse(
-           200, 
-           {
-               user: loggedUser, accessToken, refreshToken
-           },
-           "User logged In Successfully"
-       )
-   )
+    secure: true,
+  };
 
-
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedUser,
+          accessToken,
+          refreshToken,
+        },
+        "User logged In Successfully"
+      )
+    );
 });
 
-const logoutUser = asyncHandler(async (req,res) => {
-  await User.findByIdAndUpdate(req?.user?._id,{
-    $set:{refershToken : undefined}
-  },{new:true});
+const signInWithGoogle = asyncHandler(async (req, res) => {
+  const { accessToken, refreshToken } = await generateAccessAndRefershToken(
+    req.user._id
+  );
 
-  
   const options = {
-    httpOnly:true,
-    secure:true
-  }
-  return res
-  .status(200)
-  .clearCookie("accessToken",options)
-  .clearCookie("refershToken",options)
-  .json(new ApiResponse(200,{},"User Logged Out!."));
+    httpOnly: true,
+    secure: true,
+  };
 
-})
+  res
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .redirect(process.env.CORS_ORIGIN);
+});
+const logoutUser = asyncHandler(async (req, res) => {
+  if (req?.user?.social_login) {
+    req.logout((err) => {
+      if (err) {
+        throw new ApiError(500, "Internal Server Error.");
+      }
+    });
+  }
+
+  await User.findByIdAndUpdate(
+    req?.user?._id,
+    {
+      $unset: {
+        refreshToken: 1, // this removes the field from document
+      },
+    },
+    { new: true }
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User Logged Out!."));
+});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-      throw new ApiError(401, "unauthorized request")
+    throw new ApiError(401, "unauthorized request");
   }
 
   try {
-      const decodedToken = jwt.verify(
-          incomingRefreshToken,
-          process.env.REFRESH_TOKEN_SECRET
-      )
-  
-      const user = await User.findById(decodedToken?._id)
-  
-      if (!user) {
-          throw new ApiError(401, "Invalid refresh token")
-      }
-  
-      if (incomingRefreshToken !== user?.refreshToken) {
-          throw new ApiError(401, "Refresh token is expired or used")
-          
-      }
-  
-      const options = {
-          httpOnly: true,
-          secure: true
-      }
-  
-      const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
-  
-      return res
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used");
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefereshTokens(user._id);
+
+    return res
       .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", newRefreshToken, options)
       .json(
-          new ApiResponse(
-              200, 
-              {accessToken, refreshToken: newRefreshToken},
-              "Access token refreshed"
-          )
-      )
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed"
+        )
+      );
   } catch (error) {
-      throw new ApiError(401, error?.message || "Invalid refresh token")
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
-
-})
-
-const changeCurrentPassword = asyncHandler(async(req, res) => {
-  const {oldPassword, newPassword} = req.body
-
-  
-
-  const user = await User.findById(req.user?._id)
-  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
-
-  if (!isPasswordCorrect) {
-      throw new ApiError(400, "Invalid old password")
-  }
-
-  user.password = newPassword
-  await user.save({validateBeforeSave: false})
-
-  return res
-  .status(200)
-  .json(new ApiResponse(200, {}, "Password changed successfully"))
-})
-
-
-const getCurrentUser = asyncHandler(async(req, res) => {
-  return res
-  .status(200)
-  .json(new ApiResponse(
-      200,
-      req.user,
-      "User fetched successfully"
-  ))
-})
-
-const updateAccountDetails = asyncHandler(async(req, res) => {
-  const {fullName, email} = req.body
-
-  if (!fullName || !email) {
-      throw new ApiError(400, "All fields are required")
-  }
-
-  const user = await User.findByIdAndUpdate(
-      req.user?._id,
-      {
-          $set: {
-              fullName,
-              email: email
-          }
-      },
-      {new: true}
-      
-  ).select("-password")
-
-  return res
-  .status(200)
-  .json(new ApiResponse(200, user, "Account details updated successfully"))
 });
 
-const updateUserAvatar = asyncHandler(async(req, res) => {
-  const avatarLocalPath = req.file?.path
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) {
+    throw new ApiError(400, "Old and new password is required.");
+  }
+  const user = await User.findById(req.user?._id);
+  if (user.social_login) {
+    throw new ApiError(400, "You can't change password.");
+  }
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
-  if (!avatarLocalPath) {
-      throw new ApiError(400, "Avatar file is missing")
+  if (!isPasswordCorrect) {
+    throw new ApiError(400, "Invalid old password");
   }
 
-  //TODO: delete old image - assignment
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
 
-  const avatar = await uploadOnCloudinary(avatarLocalPath)
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"));
+});
 
-  if (!avatar.url) {
-      throw new ApiError(400, "Error while uploading on avatar")
-      
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "User fetched successfully"));
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName ,profession,
+    aboutme} = req.body;
+
+  if (!fullName) {
+    throw new ApiError(400, "fullName is required");
   }
-
   const user = await User.findByIdAndUpdate(
-      req.user?._id,
-      {
-          $set:{
-              avatar: avatar.url
-          }
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        profession,
+        aboutme,
       },
-      {new: true}
-  ).select("-password")
+    },
+    { new: true }
+  ).select("-password");
 
   return res
-  .status(200)
-  .json(
-      new ApiResponse(200, user, "Avatar image updated successfully")
-  )
-})
-
-const updateUserCoverImage = asyncHandler(async(req, res) => {
-  const coverImageLocalPath = req.file?.path
-
-  if (!coverImageLocalPath) {
-      throw new ApiError(400, "Cover image file is missing")
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully"));
+});
+const changeProfile = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, "Profile is required.");
   }
 
-  //TODO: delete old image - assignment
-
-
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-
-  if (!coverImage.url) {
-      throw new ApiError(400, "Error while uploading on avatar")
-      
+  if (req?.user?.profile) {
+    await destroyFromCloudinary(req.user.profile);
   }
-
+  const response = await uploadOnCloudinary(req.file.path);
   const user = await User.findByIdAndUpdate(
-      req.user?._id,
-      {
-          $set:{
-              coverImage: coverImage.url
-          }
+    req.user?._id,
+    {
+      $set: {
+        profile: response.url,
       },
-      {new: true}
-  ).select("-password")
-
+    },
+    { new: true }
+  ).select("-password");
   return res
-  .status(200)
-  .json(
-      new ApiResponse(200, user, "Cover image updated successfully")
-  )
-})
+    .status(200)
+    .json(new ApiResponse(200, user, "Profile updated successfully"));
+});
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(401, "E-mail is required");
+  }
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new ApiError(401, "Invalid e-mail address.");
+  }
+  if (user.social_login) {
+    throw new ApiError(401, "This user can't reset password.");
+  }
+  const token = jwt.sign(
+    {
+      _id: user._id,
+      email: user.email,
+    },
+    process.env.ACCESS_TOKEN_SECRATE,
+    { expiresIn: "15m" }
+  );
+  const resetURL = `${process.env.CORS_ORIGIN}/password-reset/${token}`;
+  // required parameter send to, subject , content
+  const response = await allMail(
+    user.email,
+    "Reset Password",
+    `<div>
+  <h4>Hi, ${user.fullName}</h4>
+  <h5>To reset password</h5>
+  <a href='${resetURL}' class='btn btn-info btn-sm'>RESET PASSWORD</a>
+  <p>If the link doesn't work click here </p>
+  <a href='${resetURL}'>Click</a>
+  </div>`
+  );
 
-const getUserChannelProfile = asyncHandler(async(req, res) => {
-  const {username} = req.params
-
-  if (!username?.trim()) {
-      throw new ApiError(400, "username is missing")
+  return res.json(
+    new ApiResponse(
+      200,
+      {},
+      "The password reset link has been sent to your email. please, Check your email."
+    )
+  );
+});
+const resetPassword = asyncHandler(async (req, res) => {
+  const { password, token } = req.body;
+  if (!password || !token) {
+    throw new ApiError(401, "Password or token is required.");
   }
 
-  const channel = await User.aggregate([
-      {
-          $match: {
-              username: username?.toLowerCase()
-          }
-      },
-      {
-          $lookup: {
-              from: "subscriptions",
-              localField: "_id",
-              foreignField: "channel",
-              as: "subscribers"
-          }
-      },
-      {
-          $lookup: {
-              from: "subscriptions",
-              localField: "_id",
-              foreignField: "subscriber",
-              as: "subscribedTo"
-          }
-      },
-      {
-          $addFields: {
-              subscribersCount: {
-                  $size: "$subscribers"
-              },
-              channelsSubscribedToCount: {
-                  $size: "$subscribedTo"
-              },
-              isSubscribed: {
-                  $cond: {
-                      if: {$in: [req.user?._id, "$subscribers.subscriber"]},
-                      then: true,
-                      else: false
-                  }
-              }
-          }
-      },
-      {
-          $project: {
-              fullName: 1,
-              username: 1,
-              subscribersCount: 1,
-              channelsSubscribedToCount: 1,
-              isSubscribed: 1,
-              avatar: 1,
-              coverImage: 1,
-              email: 1
-
-          }
-      }
-  ])
-
-  if (!channel?.length) {
-      throw new ApiError(404, "channel does not exists")
+  try {
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRATE);
+    const user = await User.findOne({ email: decodedToken.email });
+    user.password = password;
+    await user.save({ validateBeforeSave: false });
+  } catch (error) {
+    if (error?.message === "jwt expired") {
+      throw new ApiError(402, "Token has Expired");
+    }
   }
 
-  return res
-  .status(200)
-  .json(
-      new ApiResponse(200, channel[0], "User channel fetched successfully")
-  )
-})
+  return res.json(
+    new ApiResponse(200, {}, "The password has been reset successfully.")
+  );
+});
 
-const getWatchHistory = asyncHandler(async(req, res) => {
-  const user = await User.aggregate([
-      {
-          $match: {
-              _id: new mongoose.Types.ObjectId(req.user._id)
-          }
-      },
-      {
-          $lookup: {
-              from: "videos",
-              localField: "watchHistory",
-              foreignField: "_id",
-              as: "watchHistory",
-              pipeline: [
-                  {
-                      $lookup: {
-                          from: "users",
-                          localField: "owner",
-                          foreignField: "_id",
-                          as: "owner",
-                          pipeline: [
-                              {
-                                  $project: {
-                                      fullName: 1,
-                                      username: 1,
-                                      avatar: 1
-                                  }
-                              }
-                          ]
-                      }
-                  },
-                  {
-                      $addFields:{
-                          owner:{
-                              $first: "$owner"
-                          }
-                      }
-                  }
-              ]
-          }
-      }
-  ])
-
-  return res
-  .status(200)
-  .json(
-      new ApiResponse(
-          200,
-          user[0].watchHistory,
-          "Watch history fetched successfully"
-      )
-  )
-})
-
-export { 
-  registerUser, 
+export {
+  registerUser,
   loginUser,
   logoutUser,
+  signInWithGoogle,
   refreshAccessToken,
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
-  updateUserAvatar,
-  updateUserCoverImage,
-  getUserChannelProfile,
-  getWatchHistory,
+  changeProfile,
+  forgotPassword,
+  resetPassword,
 };

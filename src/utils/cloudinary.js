@@ -1,22 +1,39 @@
-import {v2 as cloudinary} from 'cloudinary';
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY, 
-  api_secret: process.env.CLOUDINARY_API_SECRATE 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRATE,
 });
 
 const uploadOnCloudinary = async (localFilePath) => {
-    try {
-        if(!localFilePath) return null;
-        const response = await cloudinary.uploader.upload(localFilePath,{resource_type:"auto"});
-        fs.unlinkSync(localFilePath);
-        return response;
-    } catch (error) {
-        fs.unlinkSync(localFilePath);
-        return null;
-    }
-}
+  try {
+    if (!localFilePath) return null;
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: "auto",
+    });
+    fs.unlinkSync(localFilePath);
+    return response;
+  } catch (error) {
+    fs.unlinkSync(localFilePath);
+    return null;
+  }
+};
+const destroyFromCloudinary = async (publicUrl) => {
+  try {
+    if (!publicUrl) return null;
+    const parts = publicUrl.split("/");
+    const filename = parts.pop(); 
+    const publicId = filename.split(".")[0]; 
+    const response = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+    });
+    return response;
+  } catch (error) {
+    
+    return null;
+  }
+};
 
-export {uploadOnCloudinary};
+export { uploadOnCloudinary, destroyFromCloudinary };

@@ -4,42 +4,46 @@ import bcrypt from "bcrypt";
 
 const userSchema = new Schema(
   {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      index: true,
-    },
     email: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
     fullName: {
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
-    avatar: {
-      type: String, 
-      required: true,
-    },
-    coverImage: {
+    profile : {
       type: String,
     },
-    watchHistory: [
-      {
-        type: Schema.Types.ObjectId,
-      },
-    ],
+    email_verified_at: {
+      type: Date
+    },
+    social_login:{
+      type : Boolean,
+      default : false,   
+    },
+    type:{
+      type : String,
+      default : "EMAIL",   
+    },
+    profession: {
+      type: String,
+    },
+    aboutme: {
+      type: String
+    },
     password: {
       type: String,
-      required: [true, 'Password is required']
+      // required: [true, 'Password is required']
+      required : function () {
+        // Password is required only if it's not a social login
+        return !this.social_login;
+      },
     },
     refreshToken: {
       type: String,
@@ -63,7 +67,6 @@ userSchema.methods.generateAccessToken = function(){
       { 
           _id: this._id,
           email: this.email,
-          username: this.username,
           fullName: this.fullName
       },
       process.env.ACCESS_TOKEN_SECRATE,

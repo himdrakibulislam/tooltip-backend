@@ -18,7 +18,17 @@ connectDB().then(()=>{
     })
 }); 
  
+process.on('uncaughtException', function (err,res) {
+    console.error(err.message);
+});
 
+// process.on('unhandledRejection', (reason, promise) => {
+//     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+//     // Handle the error or log it
+//   });
+  
+
+  
 /* 
 import express from "express"
 const app = express()
