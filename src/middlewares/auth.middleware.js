@@ -4,19 +4,41 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
-    try {
-        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","");
-        if(!token){
-            throw new ApiError(400,"Unauthorized request.");
-        }
-        const decodedToken = jwt.verify(token,process.env.ACCESS_TOKEN_SECRATE);
-        const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
-        if (!user) {
-            throw new ApiError(401,"Invalid Access Token!.")
-        }
-        req.user = user;
-        next();
-    } catch (error) {
-        throw new ApiError(401,error?.message || "Invalid Access Token!.");  
+  try {
+    const token =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      throw new ApiError(400, "Unauthorized request.");
     }
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRATE);
+    const user = await User.findById(decodedToken?._id).select(
+      "-password -refreshToken"
+    );
+    if (!user) {
+      throw new ApiError(401, "Invalid Access Token!.");
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid Access Token!.");
+  }
+});
+
+export const verified = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw new ApiError(404, "User Not Found!.");
+    }
+    if (!user?.email_verified_at) {
+      throw new ApiError(
+        401,
+        "E-mail Not Verified. Please, Verify your e-mail address."
+      );
+    }
+    next();
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid Request!.");
+  }
 });

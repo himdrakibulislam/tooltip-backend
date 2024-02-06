@@ -9,7 +9,7 @@ const MAIL = nodemailer.createTransport({
       pass: process.env.MAIL_PASSWORD,
     },
   });
-export const allMail = async (to_email,subject = "Toolkit",content ="") => {
+export const allMail = async (to_email,subject = "Tooltip",content ="") => {
   try {
     const response = await MAIL.sendMail({
       from: process.env.MAIL_FROM_ADDRESS,

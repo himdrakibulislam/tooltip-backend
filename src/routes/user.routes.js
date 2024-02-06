@@ -11,11 +11,12 @@ import {
   forgotPassword,
   resetPassword,
   changeProfile,
+  resendVerificationMail,
+  verifyUserEmail,
 } from "../controllers/user.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT,verified} from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import passport from "../middlewares/passport.middleware.js";
-
 import openai from "../utils/openAI.js";
 const router = Router();
 
@@ -23,6 +24,7 @@ router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/forgot-password").post(forgotPassword);
 router.route("/reset-password").post(resetPassword);
+router.route("/verify-email").post(verifyUserEmail);
 // social login
 router
   .route("/auth/google")
@@ -37,14 +39,14 @@ router
 // secure routes
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
-router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
-router.route("/update-account").patch(verifyJWT, updateAccountDetails);
-router
-  .route("/change-profile")
-  .post(verifyJWT, upload.single("profile"), changeProfile);
+router.route("/verification-notification").post(verifyJWT, resendVerificationMail);
 
-router.route("/chat").post(verifyJWT, async (req, res) => {
+router.route("/change-password").post(verifyJWT,verified, changeCurrentPassword);
+router.route("/update-account").patch(verifyJWT,verified,updateAccountDetails);
+router.route("/change-profile").post(verifyJWT,verified, upload.single("profile"), changeProfile);
+
+router.route("/chat").post(verifyJWT,verified, async (req, res) => {
   try {
     const chatCompletion = await openai.chat.completions.create({
       messages: [{ role: "user", content: req.body.prompt }],

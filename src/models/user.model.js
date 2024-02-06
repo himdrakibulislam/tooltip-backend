@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { allMail } from "../utils/mail.conf.js";
 
 const userSchema = new Schema(
   {
@@ -88,5 +89,26 @@ userSchema.methods.generateRefreshToken = function(){
   )
 }
 
+userSchema.methods.sendEmailVerificationNotification = async function(){
+  const token = jwt.sign(
+    {
+      _id: this._id,
+      email: this.email,
+    },
+    process.env.ACCESS_TOKEN_SECRATE,
+    { expiresIn: "15m" }
+  );
+  const url = process.env.CORS_ORIGIN +`/user/verify-email?verify=${token}` ;
+  const content = `<h4>Hello ${this.fullName},</h4>
+  <p>Thank you for registering with us. To complete your registration and activate your account, please click
+    the link below to verify your email address.</p>
+
+  <button class="btn"><a href="${url}" class="btn" target="_blank">Verify</a></button>
+
+  <p>If you did not register for an account, please disregard this email.</p>
+  <h4>Best regards,</h4>
+  <h5>Tooltip</h5>`;
+  await allMail(this.email,"Verify Your Email Address",content);
+}
 
 export const User = mongoose.model("User", userSchema);
