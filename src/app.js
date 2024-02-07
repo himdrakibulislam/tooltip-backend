@@ -2,9 +2,10 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { errorHandler } from "./utils/errorHandler.js";
-import crypto from "crypto";
 import passport from "./middlewares/passport.middleware.js";
 import session from "express-session";
+import { verifyJWT,verified} from "./middlewares/auth.middleware.js";
+
 const app = express();
 app.use(
   cors({
@@ -28,21 +29,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 // routes import
 import userRouter from "./routes/user.routes.js";
-import { User } from "./models/user.model.js";
+import subscriptionRouter from "./routes/subscription.routes.js";
+
 // routes declaration
 app.use("/api/v1/users", userRouter);
-app.get("/", async (req, res) => {
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-  
-  var token = crypto.randomBytes(64).toString("hex");
-  return res
-    .status(200)
-    .cookie("sc", token, options)
-    .json("welcome to tooltip.");
-}); 
+app.use("/api/v1/subscription",verifyJWT,verified, subscriptionRouter);
+
 
 app.use(errorHandler);
 export { app };

@@ -1,15 +1,31 @@
-import mongoose,{ Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-const subscriptionSchema = Schema({
-    subscriber:{
-        type: mongoose.Types.ObjectId,
-        ref: "User"
-    },
-    channle:{
-        type: mongoose.Types.ObjectId,
-        ref: "User"
-    },
-
-},{timestamps:true});
-
-export const Subscriptiuon = mongoose.model("Subscription",subscriptionSchema);
+const subscriptionSchema = new Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  planId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  startDate: {
+    type: Date,
+    required: true,
+  },
+  endDate: {
+    type: Date,
+    required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  paymentMethodId: {
+    type: String,
+  },
+  paymentDetails: {
+    type: Object,
+  }, 
+});
+export const Subscription = mongoose.model("Subscription", subscriptionSchema);
