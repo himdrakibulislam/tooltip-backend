@@ -10,7 +10,8 @@ const createSubscription = asyncHandler(async (req, res) => {
   //     startDate : new Date().getTime(),
   //     endDate : new Date(currentDate.getTime() + (30 * 24 * 60 * 60 * 1000)),
   //   });
-  return res.json(new ApiResponse(200, {}, "Paid"));
+
+  return res.json(new ApiResponse(200, {subscription_message : "Your Subscription is still active" }, "Paid"));
 });
 
 export { createSubscription };

@@ -7,3 +7,5 @@ getUserChannelProfile aggregation pipeline
 
 authentication system 
 https://github.com/atultyagi612/Google-Authentication-nodejs
+
+subscription system is in UTC time standard 
