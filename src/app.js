@@ -4,6 +4,8 @@ import cors from "cors";
 import { errorHandler } from "./utils/errorHandler.js";
 import passport from "./middlewares/passport.middleware.js";
 import session from "express-session";
+import rateLimit from "express-rate-limit";
+
 import { verifyJWT,verified} from "./middlewares/auth.middleware.js";
 
 const app = express();
@@ -27,6 +29,14 @@ app.use(
 );
 app.use(passport.initialize());
 app.use(passport.session());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+});
+
+app.use(limiter);
 // routes import
 import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
