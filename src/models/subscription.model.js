@@ -2,12 +2,12 @@ import mongoose, { Schema } from "mongoose";
 
 const subscriptionSchema = new Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    type: Schema.Types.ObjectId, 
+    ref: "User",
   },
   planId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    type: Schema.Types.ObjectId, 
+    ref: "Plan",
   },
   startDate: {
     type: Date,
@@ -26,6 +26,6 @@ const subscriptionSchema = new Schema({
   },
   paymentDetails: {
     type: Object,
-  }, 
+  },
 });
 export const Subscription = mongoose.model("Subscription", subscriptionSchema);

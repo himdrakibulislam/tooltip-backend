@@ -40,10 +40,12 @@ app.use(limiter);
 // routes import
 import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
+import contentRouter from "./routes/content.routes.js";
 
 // routes declaration
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/subscription",verifyJWT,verified, subscriptionRouter);
+app.use("/api/v1/content",verifyJWT,verified, contentRouter);
 
 
 app.use(errorHandler);
