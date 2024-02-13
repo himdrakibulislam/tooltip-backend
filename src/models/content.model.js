@@ -14,6 +14,9 @@ const contentSchema = new Schema(
       type: String,
       required: true,
     },
+    adcopyProductImageURL: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

@@ -13,6 +13,7 @@ import {
   changeProfile,
   resendVerificationMail,
   verifyUserEmail,
+  getContents,
 } from "../controllers/user.controller.js";
 import { verifyJWT,verified} from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -46,17 +47,6 @@ router.route("/change-password").post(verifyJWT,verified, changeCurrentPassword)
 router.route("/update-account").patch(verifyJWT,verified,updateAccountDetails);
 router.route("/change-profile").post(verifyJWT,verified, upload.single("profile"), changeProfile);
 
-router.route("/chat").post(verifyJWT,verified, async (req, res) => {
-  try {
-    const chatCompletion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: req.body.prompt }],
-      model: "gpt-3.5-turbo",
-    });
-    return res.json(chatCompletion?.choices[0]?.message || "");
-  } catch (error) {
-    
-    return res.json({message:"An Error Occured."})
-  }
-});
+router.route("/contents").get(verifyJWT,verified,getContents);
 
 export default router;

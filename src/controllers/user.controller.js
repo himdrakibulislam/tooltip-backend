@@ -8,6 +8,8 @@ import {
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { allMail } from "../utils/mail.conf.js";
+import { Content } from "../models/content.model.js";
+import mongoose from "mongoose";
 
 const generateAccessAndRefershToken = async (userId) => {
   try {
@@ -254,8 +256,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { fullName ,profession,
-    aboutme} = req.body;
+  const { fullName, profession, aboutme } = req.body;
 
   if (!fullName) {
     throw new ApiError(400, "fullName is required");
@@ -364,46 +365,76 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 const resendVerificationMail = asyncHandler(async (req, res) => {
   const user = req.user;
-  if(user.email_verified_at){
-    throw new ApiError(401,"Email Already Verified.");
+  if (user.email_verified_at) {
+    throw new ApiError(401, "Email Already Verified.");
   }
   await user.sendEmailVerificationNotification();
   return res.json(
-    new ApiResponse(200, {}, "A verification link has been sent successfully to your email.")
+    new ApiResponse(
+      200,
+      {},
+      "A verification link has been sent successfully to your email."
+    )
   );
 });
 const verifyUserEmail = asyncHandler(async (req, res) => {
-  const {token} = req.body;
-  if(!token){
+  const { token } = req.body;
+  if (!token) {
     throw new ApiError(402, "Token is required.");
   }
 
   try {
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRATE);
     const user = await User.findById(decodedToken._id);
-    if(user.email_verified_at){
-      return res.json(new ApiResponse(401,{},"Email Already Verified."));
+    if (user.email_verified_at) {
+      return res.json(new ApiResponse(401, {}, "Email Already Verified."));
     }
-    await User.findByIdAndUpdate(
-      decodedToken?._id,
-      {
-        $set: {
-          email_verified_at: new Date().getTime(),
-        },
-      }
-    );
-   
+    await User.findByIdAndUpdate(decodedToken?._id, {
+      $set: {
+        email_verified_at: new Date().getTime(),
+      },
+    });
   } catch (error) {
     if (error?.message === "jwt expired") {
       throw new ApiError(402, "Token has Expired");
     }
   }
 
-  return res.json(
-    new ApiResponse(200, {}, "E-mail verified successfully.")
-  );
+  return res.json(new ApiResponse(200, {}, "E-mail verified successfully."));
 });
+const getContents = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const matchObject  = {userId: new mongoose.Types.ObjectId(req.user._id)}
+  if(type){
+    matchObject.type = type;
+  }
+  const contents = await Content.aggregate([
+    {
+      $facet: {
+        totalContent: [
+          {
+            $match: matchObject,
+          },
+          {
+            $count: "total",
+          },
+        ],
+        data: [
+          {
+            $match: matchObject,
+          },
+          {
+            $project: {
+              userId: 0, // Exclude userId field
+            },
+          },
+        ],
+      },
+    },
+  ]);
 
+  return res.json(new ApiResponse(200, { contents }, "Contents."));
+});
 
 export {
   registerUser,
@@ -419,4 +450,5 @@ export {
   resetPassword,
   resendVerificationMail,
   verifyUserEmail,
+  getContents,
 };
