@@ -3,26 +3,27 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import openai from "../utils/openAI.js";
 import { Content } from "../models/content.model.js";
-import { ADCOPY_TYPE, IMAGE_TYPE, adcopyPrompt } from "../constants.js";
+import { ADCOPY_TYPE, AUDIO_TRANSCRIPTION, IMAGE_TYPE, adcopyPrompt } from "../constants.js";
+import fs from "fs";
 const generateAiImage = asyncHandler(async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    throw new ApiError(401, "Prompt is required.");
+
+  if (!req.file.path) {
+    throw new ApiError(401, "Audio is required.");
   }
   try {
-    const image = await openai.images.generate({
-      model: "dall-e-2",
-      prompt: prompt,
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(req.file.path),
+      model: "whisper-1",
     });
-    if (image.data && image.data.length > 0) {
+    if (transcription.text) {
       await Content.create({
         userId: req.user._id,
-        type: IMAGE_TYPE,
-        content: image.data[0].url,
+        type: AUDIO_TRANSCRIPTION,
+        content: transcription.text,
       });
     }
     return res.json(
-      new ApiResponse(200, { image: image.data[0].url }, "AI Image generated.")
+      new ApiResponse(200, { transcription: transcription.text }, "Transcription Created.")
     );
   } catch (error) {
     throw new ApiError(401, "An Error occurred while generating the Image.");
@@ -30,9 +31,9 @@ const generateAiImage = asyncHandler(async (req, res) => {
 });
 
 const generateAdCopy = asyncHandler(async (req, res) => {
-  const { industry, website, product, social } = req.body;
+  const { industry, website, product, social,productImageURL } = req.body;
   if (
-    [industry, website, product, social].some(
+    [industry, website, product, social,productImageURL].some(
       (field) => !field || field?.trim() === ""
     )
   ) {
@@ -54,6 +55,7 @@ const generateAdCopy = asyncHandler(async (req, res) => {
         userId: req.user._id,
         type: ADCOPY_TYPE,
         content: completion.choices[0].message.content,
+        adcopyProductImageURL : productImageURL 
       });
     }
     return res.json(

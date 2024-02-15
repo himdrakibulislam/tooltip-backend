@@ -403,9 +403,14 @@ const verifyUserEmail = asyncHandler(async (req, res) => {
   return res.json(new ApiResponse(200, {}, "E-mail verified successfully."));
 });
 const getContents = asyncHandler(async (req, res) => {
-  const { type } = req.body;
-  const matchObject  = {userId: new mongoose.Types.ObjectId(req.user._id)}
-  if(type){
+  const { type, page } = req.query;
+  const pageNo = page && page > 0 ? parseInt(page) : 1;
+
+  const limit = 10;
+  const skip = (pageNo - 1) * limit;
+
+  const matchObject = { userId: new mongoose.Types.ObjectId(req.user._id) };
+  if (type) {
     matchObject.type = type;
   }
   const contents = await Content.aggregate([
@@ -428,12 +433,21 @@ const getContents = asyncHandler(async (req, res) => {
               userId: 0, // Exclude userId field
             },
           },
+          {
+            $skip: skip, // Skip documents based on pagination
+          },
+          {
+            $limit: limit, // Limit the number of documents per page
+          },
         ],
       },
     },
   ]);
+  // count total pages
+  const totalContentCount = contents[0]?.totalContent[0]?.total; // Total number of documents
+  const totalPages = Math.ceil(totalContentCount / limit);
 
-  return res.json(new ApiResponse(200, { contents }, "Contents."));
+  return res.json(new ApiResponse(200, { contents, totalPages }, "Contents."));
 });
 
 export {
