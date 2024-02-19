@@ -14,11 +14,11 @@ import {
   resendVerificationMail,
   verifyUserEmail,
   getContents,
+  contentDashboard,
 } from "../controllers/user.controller.js";
 import { verifyJWT,verified} from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import passport from "../middlewares/passport.middleware.js";
-import openai from "../utils/openAI.js";
 const router = Router();
 
 router.route("/register").post(registerUser);
@@ -48,5 +48,6 @@ router.route("/update-account").patch(verifyJWT,verified,updateAccountDetails);
 router.route("/change-profile").post(verifyJWT,verified, upload.single("profile"), changeProfile);
 
 router.route("/contents").get(verifyJWT,verified,getContents);
+router.route("/dashboard").get(verifyJWT,verified,contentDashboard);
 
 export default router;

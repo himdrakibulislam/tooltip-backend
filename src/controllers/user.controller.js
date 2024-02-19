@@ -10,7 +10,7 @@ import jwt from "jsonwebtoken";
 import { allMail } from "../utils/mail.conf.js";
 import { Content } from "../models/content.model.js";
 import mongoose from "mongoose";
-
+import moment from "moment";
 const generateAccessAndRefershToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -434,6 +434,12 @@ const getContents = asyncHandler(async (req, res) => {
             },
           },
           {
+            $sort: {
+              // Sorting by a field in ascending order
+              createdAt: -1, // or -1 for descending order
+            },
+          },
+          {
             $skip: skip, // Skip documents based on pagination
           },
           {
@@ -448,6 +454,60 @@ const getContents = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalContentCount / limit);
 
   return res.json(new ApiResponse(200, { contents, totalPages }, "Contents."));
+});
+const contentDashboard = asyncHandler(async (req, res) => {
+  
+  const currentMonthStart = moment().startOf('month').toDate();
+  const currentMonthEnd = moment().endOf('month').toDate();
+  const typeOfContentPipeline = [
+    {
+      $match: {
+        userId: req.user._id,
+      }
+    },
+    {
+      $group: {
+        _id: "$type",
+        count: { $sum: 1 }
+      }
+    },
+    
+    {
+      $project: {
+        _id: 0,
+        type: "$_id", // Rename _id field to date
+        count: 1 // Include the count field
+      }
+    }
+  ];
+  const dailyContentPipeline = [
+    {
+      $match: {
+        userId: req.user._id, 
+        createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd } // Filter documents for the current month
+      }
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, // Group by date in "YYYY-MM-DD" format
+        count: { $sum: 1 } // Count the number of documents for each date
+      }
+    },
+    {
+      $sort: { _id: 1 } // Sort the results by date in ascending order
+    },
+    {
+      $project: {
+        _id: 0,
+        date: "$_id", // Rename _id field to date
+        count: 1 // Include the count field
+      }
+    }
+  ];
+  // Execute the aggregation pipeline
+  const typeOfContent = await Content.aggregate(typeOfContentPipeline);
+  const dailyContentCount = await Content.aggregate(dailyContentPipeline);
+  return res.json(new ApiResponse(200, {typeOfContent ,dailyContentCount}, "Dashboard."));
 });
 
 export {
@@ -465,4 +525,5 @@ export {
   resendVerificationMail,
   verifyUserEmail,
   getContents,
+  contentDashboard
 };

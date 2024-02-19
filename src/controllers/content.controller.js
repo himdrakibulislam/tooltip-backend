@@ -3,10 +3,14 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import openai from "../utils/openAI.js";
 import { Content } from "../models/content.model.js";
-import { ADCOPY_TYPE, AUDIO_TRANSCRIPTION, IMAGE_TYPE, adcopyPrompt } from "../constants.js";
+import {
+  ADCOPY_TYPE,
+  AUDIO_TRANSCRIPTION,
+  adcopyPrompt,
+} from "../constants.js";
 import fs from "fs";
-const generateAiImage = asyncHandler(async (req, res) => {
-
+import mongoose from "mongoose";
+const generateAudioTranscript = asyncHandler(async (req, res) => {
   if (!req.file.path) {
     throw new ApiError(401, "Audio is required.");
   }
@@ -23,17 +27,25 @@ const generateAiImage = asyncHandler(async (req, res) => {
       });
     }
     return res.json(
-      new ApiResponse(200, { transcription: transcription.text }, "Transcription Created.")
+      new ApiResponse(
+        200,
+        { transcription: transcription.text },
+        "Transcription Created."
+      )
     );
   } catch (error) {
     throw new ApiError(401, "An Error occurred while generating the Image.");
+  } finally {
+    if (req.file.path) {
+      fs.unlinkSync(req.file.path);
+    }
   }
 });
 
 const generateAdCopy = asyncHandler(async (req, res) => {
-  const { industry, website, product, social,productImageURL } = req.body;
+  const { industry, website, product, social, productImageURL } = req.body;
   if (
-    [industry, website, product, social,productImageURL].some(
+    [industry, website, product, social, productImageURL].some(
       (field) => !field || field?.trim() === ""
     )
   ) {
@@ -51,23 +63,37 @@ const generateAdCopy = asyncHandler(async (req, res) => {
       presence_penalty: 0.5,
     });
     if (completion?.choices && completion?.choices?.length > 0) {
-      await Content.create({
+      const adcopy = await Content.create({
         userId: req.user._id,
         type: ADCOPY_TYPE,
         content: completion.choices[0].message.content,
-        adcopyProductImageURL : productImageURL 
+        adcopyProductImageURL: productImageURL,
       });
+      return res.json(new ApiResponse(200, { adcopy }, "Adcopy generated"));
     }
-    return res.json(
-      new ApiResponse(
-        200,
-        { prompt: completion?.choices[0]?.message?.content },
-        "Adcopy generated"
-      )
-    );
   } catch (error) {
     throw new ApiError(400, "An Error occurred while generating the adcopy.");
   }
 });
 
-export { generateAiImage, generateAdCopy };
+const deleteContent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const isValidObjectId = mongoose.Types.ObjectId.isValid(id);
+  if (!isValidObjectId) {
+    throw new ApiError(401, "Invalid Object ID");
+  }
+
+  const content = await Content.findOneAndDelete({
+    userId: req.user._id,
+    _id: id,
+  });
+  return res.json(
+    new ApiResponse(
+      200,
+      { isContentRemoved: content ? true : false },
+      "Content Removed Successfully."
+    )
+  );
+});
+
+export { generateAudioTranscript, generateAdCopy, deleteContent };

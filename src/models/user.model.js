@@ -18,30 +18,37 @@ const userSchema = new Schema(
       required: true,
       trim: true,
     },
-    profile : {
+    profile: {
       type: String,
     },
     email_verified_at: {
-      type: Date
+      type: Date,
     },
-    social_login:{
-      type : Boolean,
-      default : false,   
+    social_login: {
+      type: Boolean,
+      default: false,
     },
-    type:{
-      type : String,
-      default : "EMAIL",   
+    type: {
+      type: String,
+      default: "EMAIL",
     },
     profession: {
       type: String,
     },
+    role: {
+      type: String,
+      default: "User",
+      enum: {
+        values: ["User", "Admin","Manager","Editor"],
+      },
+    },
     aboutme: {
-      type: String
+      type: String,
     },
     password: {
       type: String,
       // required: [true, 'Password is required']
-      required : function () {
+      required: function () {
         // Password is required only if it's not a social login
         return !this.social_login;
       },
@@ -49,6 +56,12 @@ const userSchema = new Schema(
     refreshToken: {
       type: String,
     },
+    pin: {
+      type: Number,
+    },
+    country: {
+      type: String,
+    }
   },
   { timestamps: true }
 );
@@ -59,37 +72,36 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-userSchema.methods.isPasswordCorrect = async function(password){
-  return await bcrypt.compare(password, this.password)
-}
+userSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
 
-userSchema.methods.generateAccessToken = function(){
+userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-      { 
-          _id: this._id,
-          email: this.email,
-          fullName: this.fullName
-      },
-      process.env.ACCESS_TOKEN_SECRATE,
-      {
-          expiresIn: process.env.ACCESS_TOKEN_EXPIRARY
-      }
-  )
-}
-userSchema.methods.generateRefreshToken = function(){
+    {
+      _id: this._id,
+      email: this.email,
+      fullName: this.fullName,
+    },
+    process.env.ACCESS_TOKEN_SECRATE,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRARY,
+    }
+  );
+};
+userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
-      {
-          _id: this._id,
-          
-      },
-      process.env.REFRESH_TOKEN_SECRATE,
-      {
-          expiresIn: process.env.REFRESH_TOKEN_EXPIRARY
-      }
-  )
-}
+    {
+      _id: this._id,
+    },
+    process.env.REFRESH_TOKEN_SECRATE,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRARY,
+    }
+  );
+};
 
-userSchema.methods.sendEmailVerificationNotification = async function(){
+userSchema.methods.sendEmailVerificationNotification = async function () {
   const token = jwt.sign(
     {
       _id: this._id,
@@ -98,7 +110,7 @@ userSchema.methods.sendEmailVerificationNotification = async function(){
     process.env.ACCESS_TOKEN_SECRATE,
     { expiresIn: "15m" }
   );
-  const url = process.env.CORS_ORIGIN +`/user/verify-email?verify=${token}` ;
+  const url = process.env.CORS_ORIGIN + `/user/verify-email?verify=${token}`;
   const content = `<h4>Hello ${this.fullName},</h4>
   <p>Thank you for registering with us. To complete your registration and activate your account, please click
     the link below to verify your email address.</p>
@@ -108,7 +120,7 @@ userSchema.methods.sendEmailVerificationNotification = async function(){
   <p>If you did not register for an account, please disregard this email.</p>
   <h4>Best regards,</h4>
   <h5>Tooltip</h5>`;
-  await allMail(this.email,"Verify Your Email Address",content);
-}
+  await allMail(this.email, "Verify Your Email Address", content);
+};
 
 export const User = mongoose.model("User", userSchema);
