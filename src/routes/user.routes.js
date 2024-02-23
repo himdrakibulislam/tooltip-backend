@@ -15,6 +15,7 @@ import {
   verifyUserEmail,
   getContents,
   contentDashboard,
+  getUserSubscriptions,
 } from "../controllers/user.controller.js";
 import { verifyJWT,verified} from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -47,7 +48,8 @@ router.route("/change-password").post(verifyJWT,verified, changeCurrentPassword)
 router.route("/update-account").patch(verifyJWT,verified,updateAccountDetails);
 router.route("/change-profile").post(verifyJWT,verified, upload.single("profile"), changeProfile);
 
-router.route("/contents").get(verifyJWT,verified,getContents);
 router.route("/dashboard").get(verifyJWT,verified,contentDashboard);
+router.route("/contents").get(verifyJWT,verified,getContents);
+router.route("/subscriptions").get(verifyJWT,verified,getUserSubscriptions);
 
 export default router;

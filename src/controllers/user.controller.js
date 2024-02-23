@@ -9,6 +9,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { allMail } from "../utils/mail.conf.js";
 import { Content } from "../models/content.model.js";
+import { Subscription } from "../models/subscription.model.js";
 import mongoose from "mongoose";
 import moment from "moment";
 const generateAccessAndRefershToken = async (userId) => {
@@ -402,6 +403,62 @@ const verifyUserEmail = asyncHandler(async (req, res) => {
 
   return res.json(new ApiResponse(200, {}, "E-mail verified successfully."));
 });
+// ------ user --------
+const contentDashboard = asyncHandler(async (req, res) => {
+  const currentMonthStart = moment().startOf("month").toDate();
+  const currentMonthEnd = moment().endOf("month").toDate();
+  const typeOfContentPipeline = [
+    {
+      $match: {
+        userId: req.user._id,
+      },
+    },
+    {
+      $group: {
+        _id: "$type",
+        count: { $sum: 1 },
+      },
+    },
+
+    {
+      $project: {
+        _id: 0,
+        type: "$_id", // Rename _id field to date
+        count: 1, // Include the count field
+      },
+    },
+  ];
+  const dailyContentPipeline = [
+    {
+      $match: {
+        userId: req.user._id,
+        createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd }, // Filter documents for the current month
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, // Group by date in "YYYY-MM-DD" format
+        count: { $sum: 1 }, // Count the number of documents for each date
+      },
+    },
+    {
+      $sort: { _id: 1 }, // Sort the results by date in ascending order
+    },
+    {
+      $project: {
+        _id: 0,
+        date: "$_id", // Rename _id field to date
+        count: 1, // Include the count field
+      },
+    },
+  ];
+  // Execute the aggregation pipeline
+  const typeOfContent = await Content.aggregate(typeOfContentPipeline);
+  const dailyContentCount = await Content.aggregate(dailyContentPipeline);
+  return res.json(
+    new ApiResponse(200, { typeOfContent, dailyContentCount }, "Dashboard.")
+  );
+});
 const getContents = asyncHandler(async (req, res) => {
   const { type, page } = req.query;
   const pageNo = page && page > 0 ? parseInt(page) : 1;
@@ -455,59 +512,55 @@ const getContents = asyncHandler(async (req, res) => {
 
   return res.json(new ApiResponse(200, { contents, totalPages }, "Contents."));
 });
-const contentDashboard = asyncHandler(async (req, res) => {
-  
-  const currentMonthStart = moment().startOf('month').toDate();
-  const currentMonthEnd = moment().endOf('month').toDate();
-  const typeOfContentPipeline = [
+const getUserSubscriptions = asyncHandler(async (req, res) => {
+  const aggregationPipeline = [
     {
       $match: {
-        userId: req.user._id,
-      }
+        userId: new mongoose.Types.ObjectId(req.user._id),
+      },
     },
     {
-      $group: {
-        _id: "$type",
-        count: { $sum: 1 }
-      }
-    },
-    
-    {
-      $project: {
-        _id: 0,
-        type: "$_id", // Rename _id field to date
-        count: 1 // Include the count field
-      }
-    }
-  ];
-  const dailyContentPipeline = [
-    {
-      $match: {
-        userId: req.user._id, 
-        createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd } // Filter documents for the current month
-      }
+      $lookup: {
+        from: "plans", // Name of the Plan collection
+        localField: "planId",
+        foreignField: "_id",
+        as: "plan",
+      },
     },
     {
-      $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, // Group by date in "YYYY-MM-DD" format
-        count: { $sum: 1 } // Count the number of documents for each date
-      }
-    },
-    {
-      $sort: { _id: 1 } // Sort the results by date in ascending order
+      $unwind: "$plan",
     },
     {
       $project: {
-        _id: 0,
-        date: "$_id", // Rename _id field to date
-        count: 1 // Include the count field
-      }
-    }
-  ];
-  // Execute the aggregation pipeline
-  const typeOfContent = await Content.aggregate(typeOfContentPipeline);
-  const dailyContentCount = await Content.aggregate(dailyContentPipeline);
-  return res.json(new ApiResponse(200, {typeOfContent ,dailyContentCount}, "Dashboard."));
+        userId: 1,
+        planId: 1,
+        startDate: 1,
+        endDate: 1,
+        isActive: 1,
+        plan: {
+          _id: "$plan._id",
+          name: "$plan.title",
+          price: "$plan.price",
+          content: "$plan.content",
+        },
+      },
+    },
+  ]
+  const subscription = await Subscription.aggregate(aggregationPipeline);
+
+  const startDate = moment(subscription[0].startDate);
+  const endDate = moment(subscription[0].endDate);
+
+  // Find the difference in days
+  const subscriptionRemainingDays = endDate.diff(startDate, "days");
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { subscription, subscriptionRemainingDays },
+      "User Subscription."
+    )
+  );
 });
 
 export {
@@ -524,6 +577,7 @@ export {
   resetPassword,
   resendVerificationMail,
   verifyUserEmail,
+  contentDashboard,
   getContents,
-  contentDashboard
+  getUserSubscriptions,
 };

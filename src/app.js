@@ -11,12 +11,12 @@ import { verifyJWT,verified} from "./middlewares/auth.middleware.js";
 const app = express();
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: [process.env.CORS_ORIGIN,process.env.CORS_ORIGIN_ADMIN],
     credentials: true,
   })
 );
 app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extend: true, limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 // google
@@ -32,7 +32,7 @@ app.use(passport.session());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 200, // limit each IP to 200 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
 });
 
@@ -48,7 +48,7 @@ import adminRouter from "./routes/admin/admin.routes.js";
 
 // routes declaration
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/subscription",verifyJWT,verified, subscriptionRouter);
+app.use("/api/v1/subscription", subscriptionRouter);
 app.use("/api/v1/content",verifyJWT,verified, contentRouter);
 
 // admin routes

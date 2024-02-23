@@ -10,8 +10,7 @@ const planSchema = new Schema({
         required: true,
     },
     content:{
-        type: String,
-        required: true,
+        type: Array,
     },
 
 },{timestamps:true});

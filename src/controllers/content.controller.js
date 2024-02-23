@@ -5,11 +5,15 @@ import openai from "../utils/openAI.js";
 import { Content } from "../models/content.model.js";
 import {
   ADCOPY_TYPE,
+  AI_BLOG,
   AUDIO_TRANSCRIPTION,
   adcopyPrompt,
 } from "../constants.js";
 import fs from "fs";
 import mongoose from "mongoose";
+import GoogleAI from "../utils/googleBard.js";
+import { HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+
 const generateAudioTranscript = asyncHandler(async (req, res) => {
   if (!req.file.path) {
     throw new ApiError(401, "Audio is required.");
@@ -75,6 +79,65 @@ const generateAdCopy = asyncHandler(async (req, res) => {
     throw new ApiError(400, "An Error occurred while generating the adcopy.");
   }
 });
+const generateAIBlog = asyncHandler(async (req, res) => {
+  const { topic } = req.body; 
+  if(!topic){
+    throw new ApiError(401,"Topic is required.")
+  }
+  const model = GoogleAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+
+  const generationConfig = {
+    temperature: 0.9,
+    topK: 1,
+    topP: 1,
+    maxOutputTokens: 2048,
+  };
+
+  const safetySettings = [
+    {
+      category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    },
+    {
+      category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    },
+    {
+      category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    },
+    {
+      category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    },
+  ];
+
+  const parts = [
+    {
+      text: `Write a short, engaging blog post about ${topic}. It should include a description blog title keywords.`,
+    },
+  ];
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }],
+      generationConfig,
+      safetySettings,
+    });
+    if(result.response){
+      await Content.create({
+        userId: req.user._id,
+        type: AI_BLOG,
+        content: result?.response?.text(),
+      });
+    }
+    const blog = result?.response?.text();
+  
+    return res.json(new ApiResponse(200, { blog: blog }, "blog generated"));
+  } catch (error) {
+    throw new ApiError(401,"An Error occurred while generating the blog.");
+  }
+});
 
 const deleteContent = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -95,5 +158,9 @@ const deleteContent = asyncHandler(async (req, res) => {
     )
   );
 });
-
-export { generateAudioTranscript, generateAdCopy, deleteContent };
+export {
+  generateAudioTranscript,
+  generateAdCopy,
+  deleteContent,
+  generateAIBlog,
+};
