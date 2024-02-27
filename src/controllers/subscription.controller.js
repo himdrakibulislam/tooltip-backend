@@ -5,7 +5,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import stripe from "../utils/stripe.js";
-
+import { UTCTimestampToLocal } from "../utils/utils.js";
 const createSubscription = asyncHandler(async (req, res) => {
   //   const subscription = await Subscription.create({
   //     userId : req.user._id,
@@ -63,10 +63,10 @@ const createSubscription = asyncHandler(async (req, res) => {
     const subs = await Subscription.create({
       userId: req.user._id,
       planId: plan._id,
-      startDate: new Date(subscription.current_period_start * 1000) ,
-      endDate: new Date(subscription.current_period_end * 1000) ,
+      startDate: UTCTimestampToLocal(subscription.current_period_start),
+      endDate: UTCTimestampToLocal(subscription.current_period_end),
     });
-
+  
     return res.json(
       new ApiResponse(
         200,

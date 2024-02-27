@@ -536,7 +536,6 @@ const getUserSubscriptions = asyncHandler(async (req, res) => {
         planId: 1,
         startDate: 1,
         endDate: 1,
-        isActive: 1,
         plan: {
           _id: "$plan._id",
           name: "$plan.title",
@@ -545,19 +544,24 @@ const getUserSubscriptions = asyncHandler(async (req, res) => {
         },
       },
     },
-  ]
+  ];
   const subscription = await Subscription.aggregate(aggregationPipeline);
+  let subscriptionRemainingDays = 0;
+  let isActive = false;
 
-  const startDate = moment(subscription[0].startDate);
-  const endDate = moment(subscription[0].endDate);
+  if (subscription.length > 0) {
+    const currentDate = moment();
+    const endDate = moment(subscription[0].endDate);
 
-  // Find the difference in days
-  const subscriptionRemainingDays = endDate.diff(startDate, "days");
+    // Find the difference in days
+    subscriptionRemainingDays = endDate.diff(currentDate, "days");
+    isActive = subscription[0].endDate ? subscription[0].endDate > Date.now() : false;
+  }
 
   return res.json(
     new ApiResponse(
       200,
-      { subscription, subscriptionRemainingDays },
+      { subscription, subscriptionRemainingDays,isActive },
       "User Subscription."
     )
   );
