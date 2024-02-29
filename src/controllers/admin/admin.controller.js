@@ -244,17 +244,19 @@ const getAUser = asyncHandler(async (req, res) => {
 });
 // get all contents
 const getContents = asyncHandler(async (req, res) => {
-  const { page } = req.query;
-  const pageNo = page && parseInt(page) > 0 ? parseInt(page) : 1;
+  const { page, type } = req.query;
+  const parsedPage = parseInt(page);
+  const pageNo = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
   const limit = 10;
   const skip = (pageNo - 1) * limit;
-  const contents = await Content.find()
+  const contents = await Content.find({ type })
     .sort({ createdAt: -1 })
     // .select("")
     .skip(skip)
     .limit(limit);
-  const totalContents = await Content.countDocuments();
+  const totalContents = await Content.find({type}).countDocuments();
+  
   const totalPages = Math.ceil(totalContents / limit);
 
   return res
@@ -274,7 +276,7 @@ const getSubscriptions = asyncHandler(async (req, res) => {
 
   const limit = 10;
   const skip = (pageNo - 1) * limit;
- 
+
   const subscriptions = await Subscription.aggregate([
     // Sort the subscriptions by createdAt in descending order
     { $sort: { createdAt: -1 } },
@@ -287,8 +289,8 @@ const getSubscriptions = asyncHandler(async (req, res) => {
         from: "users", // Assuming the name of the User collection is "users"
         localField: "userId",
         foreignField: "_id",
-        as: "user"
-      }
+        as: "user",
+      },
     },
     // Unwind the user array created by the lookup
     { $unwind: "$user" },
@@ -301,11 +303,11 @@ const getSubscriptions = asyncHandler(async (req, res) => {
         planId: 1,
         startDate: 1,
         endDate: 1,
-        isActive: 1
-      }
-    }
+        isActive: 1,
+      },
+    },
   ]);
-    
+
   const totalSubscription = await Subscription.countDocuments();
   const totalPages = Math.ceil(totalSubscription / limit);
 
