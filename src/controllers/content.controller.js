@@ -15,13 +15,15 @@ import GoogleAI from "../utils/googleBard.js";
 import { HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 const generateAudioTranscript = asyncHandler(async (req, res) => {
-  if (!req.file.path) {
+  const { language } = req.body;
+  if (!req?.file?.path) {
     throw new ApiError(401, "Audio is required.");
   }
   try {
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(req.file.path),
       model: "whisper-1",
+      language: language ? language : "en",
     });
     if (transcription.text) {
       await Content.create({
@@ -80,9 +82,9 @@ const generateAdCopy = asyncHandler(async (req, res) => {
   }
 });
 const generateAIBlog = asyncHandler(async (req, res) => {
-  const { topic } = req.body; 
-  if(!topic){
-    throw new ApiError(401,"Topic is required.")
+  const { topic } = req.body;
+  if (!topic) {
+    throw new ApiError(401, "Topic is required.");
   }
   const model = GoogleAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
@@ -124,7 +126,7 @@ const generateAIBlog = asyncHandler(async (req, res) => {
       generationConfig,
       safetySettings,
     });
-    if(result.response){
+    if (result.response) {
       await Content.create({
         userId: req.user._id,
         type: AI_BLOG,
@@ -132,10 +134,10 @@ const generateAIBlog = asyncHandler(async (req, res) => {
       });
     }
     const blog = result?.response?.text();
-  
+
     return res.json(new ApiResponse(200, { blog: blog }, "blog generated"));
   } catch (error) {
-    throw new ApiError(401,"An Error occurred while generating the blog.");
+    throw new ApiError(401, "An Error occurred while generating the blog.");
   }
 });
 
