@@ -5,7 +5,6 @@ import { errorHandler } from "./utils/errorHandler.js";
 import passport from "./middlewares/passport.middleware.js";
 import session from "express-session";
 import rateLimit from "express-rate-limit";
-
 import { verifyJWT,verified} from "./middlewares/auth.middleware.js";
 
 const app = express();
