@@ -8,6 +8,9 @@ const MAIL = nodemailer.createTransport({
       user:process.env.MAIL_USERNAME,
       pass: process.env.MAIL_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    }
   });
 export const allMail = async (to_email,subject = "Tooltip",content ="") => {
   try {
@@ -362,7 +365,7 @@ export const allMail = async (to_email,subject = "Tooltip",content ="") => {
       </html>`,
     });
   } catch (error) {
-    throw new ApiError(403,"Error when sending email" + error.message);
+    throw new ApiError(403,"Error when sending email");
   }
 }
 export default MAIL;
