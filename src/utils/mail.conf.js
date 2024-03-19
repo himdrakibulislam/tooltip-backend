@@ -362,7 +362,7 @@ export const allMail = async (to_email,subject = "Tooltip",content ="") => {
       </html>`,
     });
   } catch (error) {
-    throw new ApiError(403,"Error when sending email");
+    throw new ApiError(403,"Error when sending email" + error.message);
   }
 }
 export default MAIL;
