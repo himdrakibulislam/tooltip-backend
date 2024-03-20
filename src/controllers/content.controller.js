@@ -40,7 +40,7 @@ const generateAudioTranscript = asyncHandler(async (req, res) => {
       )
     );
   } catch (error) {
-    throw new ApiError(401, "An Error occurred while generating the Image.");
+    throw new ApiError(401, "An Error occurred while generating the Image." + error.message);
   } finally {
     if (req.file.path) {
       fs.unlinkSync(req.file.path);
@@ -137,7 +137,7 @@ const generateAIBlog = asyncHandler(async (req, res) => {
 
     return res.json(new ApiResponse(200, { blog: blog }, "blog generated"));
   } catch (error) {
-    throw new ApiError(401, "An Error occurred while generating the blog.");
+    throw new ApiError(401, "An Error occurred while generating the blog." + error.message);
   }
 });
 
