@@ -115,8 +115,9 @@ userSchema.methods.sendEmailVerificationNotification = async function () {
   <p>Thank you for registering with us. To complete your registration and activate your account, please click
     the link below to verify your email address.</p>
 
-  <button class="btn"><a href="${url}" class="btn" target="_blank">Verify</a></button>
-
+  <button class="button-36" role="button">
+  <a href="${url}" style="color: white; text-decoration: none;" target="_blank">Verify</a>
+  </button>
   <p>If you did not register for an account, please disregard this email.</p>
   <h4>Best regards,</h4>
   <h5>Tooltip</h5>`;
