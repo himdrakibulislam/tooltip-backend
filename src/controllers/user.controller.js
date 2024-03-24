@@ -62,11 +62,16 @@ const registerUser = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: true,
   };
+  const refreshOptions = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 10 * 24 * 60 * 60 * 1000 
+  }
   await createdUser.sendEmailVerificationNotification();
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("refreshToken", refreshToken, refreshOptions)
     .json(
       new ApiResponse(
         200,
@@ -114,15 +119,18 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    maxAge: 86400000 
+    secure: true
   };
+ const refreshOptions = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 10 * 24 * 60 * 60 * 1000 
+  }
 
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("refreshToken", refreshToken, refreshOptions)
     .json(
       new ApiResponse(
         200,
