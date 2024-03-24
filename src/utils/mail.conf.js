@@ -362,7 +362,7 @@ export const allMail = async (to_email,subject = "Tooltip",content ="") => {
       
       <body>
           <div class="align-center" >
-              <h3 style="background-color: black;"><img width="200" height="100%"
+              <h3 style="background-color: black; border-radius: 10px;"><img width="200" height="100%"
                       src="https://res.cloudinary.com/dae6oihks/image/upload/v1711034350/uneh0g6sohk1gd2v4yyw.png" alt="">
               </h3>
            
