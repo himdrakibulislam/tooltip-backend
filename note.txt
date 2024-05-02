@@ -1,10 +1,6 @@
 keep database connection in try catch block or promise
 js affi syntax - ;(function)()
 
-not understand 
-asyncHandler function
-getUserChannelProfile aggregation pipeline
-
 authentication system 
 https://github.com/atultyagi612/Google-Authentication-nodejs
 

@@ -41,6 +41,7 @@ app.use(limiter);
 import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import contentRouter from "./routes/content.routes.js";
+import serviceRouter from "./routes/service.routes.js";
 // admin 
 import adminRouter from "./routes/admin/admin.routes.js";
 
@@ -48,6 +49,7 @@ import adminRouter from "./routes/admin/admin.routes.js";
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/subscription", subscriptionRouter);
 app.use("/api/v1/content",verifyJWT,verified, contentRouter);
+app.use("/api/v1/service",serviceRouter);
 
 // admin routes
 app.use("/api/v1/admin", adminRouter);
